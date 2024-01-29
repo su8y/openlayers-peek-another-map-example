@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <!-- ol -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/ol3/4.6.5/ol.js"
+        integrity="sha512-O7kHS9ooekX8EveiC94z9xSvD/4xt10Qigl6uEKvspYykdux3Ci5QNu5fwi4ca0ZkZI/oCgx5ja8RklWUEqzxQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/4.6.5/ol.css"
+        integrity="sha512-D2c/nmSVlwoZk29SLwJK8GkLyCyPuNbZ/vZQL/lNzw+o+yXzsbnJt7lK/iCfdBmgyLRDi0qx27gpE8Zb1C6I7g=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/ol3/4.6.5/ol-debug.js"
+        integrity="sha512-RGRzp3Gfp9l+vkKXNjm45LxXEujXIZBIur2l2CRqIYDiZ+QLe2hprjK7YZBKo1RrfbF/pBvg2431gHU7pjjJ1A=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/4.6.5/ol-debug.css"
+        integrity="sha512-hBSieZLd5rse9gdkfv4n0pDU4D04SxpqBtwDzRy/QiXRBhczDyfCTDTnHCada73ubNqiQv6BLgCRXHAJPUwC5w=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- goggle -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=" async
+        defer></script>
+    <!-- kakao -->
+    <script type="text/javascript"
+        src="http://dapi.kakao.com/v2/maps/sdk.js?appkey="></script>
+
+    <!-- naver.com -->
+    <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId="></script>
+
+    <!-- // route -->
+    <script src="https://api.routo.com/v2/maps/map?key="></script>
+</head>
+<style>
+    .container {
+        display: flex;
+        width: 1000px;
+        height: 500px;
+        position:relative;
+    }
+
+    .map {
+        width: 100%;
+        height: 100%;
+        position:absolute;
+    }
+
+    .hidden {
+        display: none;
+    }
+    .control_map{
+        z-index: 50;
+    }
+    .o-0{
+        opacity: 0%;
+    }
+</style>
+
+<body>
+    <div class="container">
+        <div id="ol_map" class="map control_map"></div>
+        <!-- <div id="kakaoMap" class="kakao"></div> -->
+        <div id="naver_map" class="map o-0"></div>
+        <div id="routo_map" class="map "></div>
+        <div id="google_map" class="map o-0"></div>
+    </div>
+    <select id="selectMap">
+        <option value="base">base</option>
+        <option value="naver">naver</option>
+        <option value="routo">routo</option>
+        <option value="google">google</option>
+    </select>
+</body>
+<script>
+    document.querySelector("#selectMap").addEventListener("change"
+        , (event) => {
+            olMap.changeMap(event.target.value)
+        })
+</script>
+
+<script type="text/javascript">
+    var olMap = (function () {
+        let map;
+
+        let currentZoom = 17;
+        let mapContainer = document.querySelector("#ol_map");
+        var mapGroup = {}, currentMap = 0;
+
+        let viewmain = new ol.View({
+            center: [126.570667, 33.450701],
+            projection: "EPSG:4326",
+            zoom: currentZoom,
+        })
+
+        const init = (_mapGroup) => {
+            map = new ol.Map({
+                target: mapContainer,
+                layers: [
+                    new ol.layer.Tile({
+                        source: new ol.source.OSM(),
+                    }),
+                ],
+                view: viewmain
+            })
+            currentMap = "base";
+
+            Object.keys(_mapGroup).forEach((key, index, array) => {
+                _mapGroup[key].init(viewmain.getZoom(), viewmain.getCenter())
+                // _mapGroup[key].hidden();
+            })
+
+            mapGroup = _mapGroup;// map Group 초기화 
+
+            mapGroup = { ...mapGroup, base: null }
+
+
+        }
+
+        viewmain.on("change:center", function (e) {
+            if (!isValidMap(currentMap)) return;
+            mapGroup[currentMap].moveCenter(e.target.getCenter());
+        })
+
+        viewmain.on("change:resolution", function (e) {
+            if (!isValidMap(currentMap)) return;
+            var newZoom = e.target.getZoom();
+
+            mapGroup[currentMap].changeZoomLevel(newZoom);
+        })
+
+        const isValidMap = (name) => {
+            return mapGroup[name] ? true : false;
+        }
+        const changeMap = (name) => {
+            if (currentMap === name) return;
+            if(name === "base"){
+                mapContainer.classList.remove("o-0")
+            }
+            if(name !== "base"){
+                mapContainer.classList.add("o-0")
+            }
+
+            const previousMapName = currentMap;
+            if (isValidMap(previousMapName)) {
+                mapGroup[previousMapName].hidden();
+            }
+
+            currentMap = name;
+
+            if (isValidMap(currentMap)) {
+                mapGroup[currentMap].show();
+                const thisView = map.getView();
+                mapGroup[currentMap].changeZoomLevel(thisView.getZoom())
+                mapGroup[currentMap].moveCenter(thisView.getCenter())
+            }
+
+        }
+
+        return {
+            init,
+            changeMap
+        }
+    })()
+
+    var naverMap = (function () {
+        let map
+        let mapContainer = document.querySelector("#naver_map");
+
+        const moveCenter = (coord) => {
+            map.setCenter(new naver.maps.LatLng(coord[1], coord[0]))
+        }
+        const changeZoomLevel = (level) => {
+            map.setZoom(level, true);
+        }
+     
+        const init = (zoom, coord) => {
+            map = new naver.maps.Map(mapContainer, {
+                zoom: 17,
+                center: new naver.maps.LatLng(33.450701, 126.570667),
+                draggable: false,
+                pinchZoom: false,
+                scrollWheel: false,
+                keyboardShortcuts: false,
+                disableDoubleTapZoom: true,
+                disableDoubleClickZoom: true,
+                disableTwoFingerTapZoom: true
+            })
+
+        }
+        const show = () => {
+            mapContainer.classList.remove("o-0");
+        }
+        const hidden = () => {
+            mapContainer.classList.add("o-0");
+        }
+        return {
+            moveCenter,
+            changeZoomLevel,
+            init,
+            show, hidden,
+        }
+    })()
+    var routoMap = (function () {
+        let map;
+        let mapContainer = document.querySelector("#routo_map");
+        function moveCenter(lonLat) {
+            const [lng, lat] = lonLat;
+            map.setCenter({ lat, lng });
+        }
+        function changeZoomLevel(currentZoom) {
+            map.setZoom(currentZoom);
+        }
+        function init(zoom, coord) {
+            map = new routo.maps.Map(mapContainer);
+            mapContainer.style.pointerEvents="none";
+
+        }
+        const show = () => {
+            mapContainer.classList.remove("o-0");
+        }
+        const hidden = () => {
+            mapContainer.classList.add("o-0");
+        }
+        return {
+            moveCenter,
+            changeZoomLevel,
+            init,
+            show,
+            hidden,
+        }
+
+    })();
+
+    var googleMap = (function () {
+        var map;
+        var mapContainer = document.querySelector("#google_map")
+        function init(zoom, coord) {
+            const { Map } = google.maps.importLibrary("maps");
+            map = new google.maps.Map(mapContainer, {
+                disableDefaultUI: true,
+                draggable: false,
+                zoomControl: false,
+                scrollwheel: false,
+                disableDoubleClickZoom: true,
+            });
+            moveCenter(coord)
+            changeZoomLevel(zoom)
+
+        }
+
+        function moveCenter(coord) {
+            const [lng, lat] = coord;
+            map.setCenter({ lat, lng })
+        }
+
+        function changeZoomLevel(level) {
+            map.setZoom(level);
+        }
+        const show = () => {
+            mapContainer.classList.remove("o-0");
+        }
+        const hidden = () => {
+            mapContainer.classList.add("o-0");
+        }
+        return {
+            init, moveCenter, changeZoomLevel,
+            show, hidden,
+        }
+
+    })()
+    olMap.init(
+        {
+            naver: naverMap,
+            routo: routoMap,
+            google: googleMap
+        }
+    )
+
+
+</script>
+<script>
+
+</script>
+<script>
+    // var kakaoUrl = `http://map.daumcdn.net/map_k3f_prod/bakery/image_map_png/PNGSD01/v19_evsok/4.777719145477395/65/216.png`;
+    // var mapContainer = document.getElementById('kakaoMap'), // 지도를 표시할 div
+    //     mapOption = {
+    //         center: new kakao.maps.LatLng(33.450701, 126.570667), // 지도의 중심좌표
+    //         level: 3 // 지도의 확대 레벨
+    //     };
+
+    // // 지도를 표시할 div와  지도 옵션으로  지도를 생성합니다
+    // var kakaomap = new kakao.maps.Map(mapContainer, mapOption);
+    // kakaomap.setZoomable(false);
+    // kakaomap.setDraggable(false);
+
+    // function setBoundsKakao(_sw, _ne) {
+    //     var sw = new kakao.maps.LatLng(_sw[1], _sw[0])
+    //     var ne = new kakao.maps.LatLng(_ne[1], _ne[0]);
+
+    //     var bounds = new kakao.maps.LatLngBounds(ne, sw);
+    //     console.log(bounds);
+    //     kakaomap.setBounds(bounds);
+    //     console.log(kakaomap.getBounds())
+    // }
+    // function setZoomKakao(level) {
+    //     // (level이 커지면 값은 줄어든다 .)
+    //     console.log(level.toString() + " :" + (level - 14).toString())
+    //     kakaomap.setLevel(14 - level)
+    // }
+    // function setCenterKakao(coord) {
+    //     kakaomap.setCenter(new kakao.maps.LatLng(coord[1], coord[0]))
+
+    // }
+</script>
+
+</html>
